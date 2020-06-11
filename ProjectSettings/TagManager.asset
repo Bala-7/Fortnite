@@ -6,6 +6,8 @@ TagManager:
   tags:
   - Terrain
   - CraftObject
+  - AimTarget
+  - Enemy
   layers:
   - Default
   - TransparentFX
