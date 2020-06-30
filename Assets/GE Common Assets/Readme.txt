@@ -1,1 +1,0 @@
-GE Common Assets folder contains our free assets for using in demo scenes.
