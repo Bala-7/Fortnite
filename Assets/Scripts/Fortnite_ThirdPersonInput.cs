@@ -202,8 +202,7 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
                 Vector3 strPos = new Vector3(buildPosRot.x, 0, buildPosRot.y);
                 Quaternion strRot = Quaternion.Euler(new Vector3(0, buildPosRot.z, 0));
 
-                Debug.Log("Building mode: Player is in cell -> " + playerCell + ", looking at cell -> " + targetCell); 
-
+                
                 _wallPrevInstance.transform.position = strPos;
                 _wallPrevInstance.transform.rotation = strRot;
                 if (Input.GetMouseButtonDown(0))
@@ -215,14 +214,17 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
             }
             else if (_bState == BUILD_STATE.FLOOR_PREVIEW)
             {
+                Vector2 lookingCell = GetPlayerLookingCell();
+
                 Vector2 playerCell = GetPlayerPositionCell();
                 Vector2 lookingDir = GetPlayerLookingDirection();
                 Vector2 targetCell = playerCell + lookingDir;
 
-                Vector3 strPos = new Vector3(playerCell.x * 4, 0, playerCell.y * 4);
+                Vector3 strPos = new Vector3(lookingCell.x * 4, 0, lookingCell.y * 4);
 
                 _floorPrevInstance.transform.position = strPos;
                 _floorPrevInstance.transform.rotation = Quaternion.identity;
+
 
 
                 if (Input.GetMouseButtonDown(0))
@@ -236,8 +238,9 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
             {
                 Vector2 playerCell = GetPlayerPositionCell();
                 Vector2 lookingDir = GetPlayerLookingDirection();
+                Vector2 lookingCell = GetPlayerLookingCell();
 
-                Vector3 strPos = new Vector3(playerCell.x * 4 + 2, 2, playerCell.y * 4 + 2);
+                Vector3 strPos = new Vector3(lookingCell.x * 4 + 2, 2, lookingCell.y * 4 + 2);
                 Quaternion strRot = Quaternion.Euler(new Vector3((lookingDir.x < 0) ? 180 : 0, lookingDir.y * (-90), 45));
 
                 _rampPrevInstance.transform.position = strPos;
@@ -458,7 +461,39 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
             float z = Mathf.Sign(transform.forward.z);
             return new Vector2(0, z);
         }
-        
+    }
+
+    private Vector2 GetPlayerLookingCell() {
+        Vector2 targetCell = Vector2.zero;
+        Vector2 playerCell = GetPlayerPositionCell();
+
+        // Bit shift the index of the layer (8) to get a bit mask
+        int layerMask = 1 << 8;
+
+        // This would cast rays only against colliders in layer 8.
+        // But instead we want to collide against everything except layer 8. The ~ operator does this, it inverts a bitmask.
+        layerMask = ~layerMask;
+
+        RaycastHit hit;
+        // Does the ray intersect any objects excluding the player layer
+        if (Physics.Raycast(_cam.transform.position, _camM.GetForwardDirection(), out hit, 4.0f, layerMask))
+        {
+            Debug.DrawRay(_cam.transform.position, _camM.GetForwardDirection() * hit.distance, Color.yellow);
+            
+            return playerCell;
+        }
+        else
+        {
+            Debug.DrawRay(_cam.transform.position, _camM.GetForwardDirection() * 4.0f, Color.white);
+            
+            Vector2 lookingDir = GetPlayerLookingDirection();
+
+            return playerCell + lookingDir;
+        }
+
+
+        return targetCell;
+    
     }
 
     // Returns the position and rotation in which the structure will be built. The return Vector3 is in the following format: (PosX, PosZ, Rotation)
