@@ -31066,7 +31066,7 @@ MonoBehaviour:
   backwards_walk_speed: 5
   strafe_speed: 5
   rotation_speed: 1.5
-  jump_force: 2
+  jump_force: 4.5
   map: {fileID: 378379469}
   pencil: {fileID: 573783758}
   verticalWallPrefab: {fileID: 7088680480813259310, guid: e8786a8be1fa2d343ae12b38e94c736a,

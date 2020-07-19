@@ -61,6 +61,7 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
     // Privates
     private MyTPCharacter tpc;          // Script asociado al modelo del robot. Uso esto solo para poder animarlo
     private CinemachineFreeLook cfl;    // Este es el objeto que se crea en la escena al crear una cámara Cinemachine. Lo usamos para controlar la posición y movimiento de la cámara
+    private Rigidbody _rb;
 
     #region PostProcessing
     private PostProcessVolume ppv;
@@ -81,6 +82,7 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
 
     private void Awake()
     {
+        _rb = GetComponent<Rigidbody>();
         tpc = FindObjectOfType<MyTPCharacter>();
         _camM = GetComponent<CameraMovement>();
         _cam = _camM.GetCamera();
@@ -127,11 +129,16 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
         bool mouseLeft = Input.GetMouseButton(0); // Left click
         bool mouseRightHeld = Input.GetMouseButton(1); // Right click
         bool mouseRightReleased = Input.GetMouseButtonUp(1);
-
+        
         bool walking = (m_Move.x != 0 || m_Move.z != 0);    // true if the character is moving
         bool walkingBackwards = Input.GetKey(KeyCode.S);
         bool modeKeyPressed = Input.GetKeyDown(KeyCode.Q);      // true in the frame we press the key
 
+
+        bool jump = Input.GetKeyDown(KeyCode.Space);
+        if (jump) {
+            _rb.AddForce(Vector3.up * jump_force, ForceMode.Impulse);
+        }
 
         // Watch if we need to change de mode
         HandleModeChange();
@@ -199,7 +206,13 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
                 Vector2 lookingDir = GetPlayerLookingDirection();
                 Vector2 targetCell = playerCell + lookingDir;
                 Vector3 buildPosRot = GetBuildPositionAndRotation(playerCell, lookingDir);
-                Vector3 strPos = new Vector3(buildPosRot.x, 0, buildPosRot.y);
+
+                int yCell = (int)(transform.position.y / 4);
+                if ((int)(transform.position.y) % 4 > 2)
+                {
+                    yCell++;
+                }
+                Vector3 strPos = new Vector3(buildPosRot.x, yCell * 4, buildPosRot.y);
                 Quaternion strRot = Quaternion.Euler(new Vector3(0, buildPosRot.z, 0));
 
                 
@@ -219,8 +232,12 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
                 Vector2 playerCell = GetPlayerPositionCell();
                 Vector2 lookingDir = GetPlayerLookingDirection();
                 Vector2 targetCell = playerCell + lookingDir;
-
-                Vector3 strPos = new Vector3(lookingCell.x * 4, 0, lookingCell.y * 4);
+                int yCell = (int)(transform.position.y / 4);
+                if ((int)(transform.position.y) % 4 > 2) {
+                    yCell++;
+                }
+                Debug.Log(yCell);
+                Vector3 strPos = new Vector3(lookingCell.x * 4, yCell * 4, lookingCell.y * 4);
 
                 _floorPrevInstance.transform.position = strPos;
                 _floorPrevInstance.transform.rotation = Quaternion.identity;
@@ -240,7 +257,13 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
                 Vector2 lookingDir = GetPlayerLookingDirection();
                 Vector2 lookingCell = GetPlayerLookingCell();
 
-                Vector3 strPos = new Vector3(lookingCell.x * 4 + 2, 2, lookingCell.y * 4 + 2);
+                int yCell = (int)(transform.position.y / 4);
+                if ((int)(transform.position.y) % 4 > 2)
+                {
+                    yCell++;
+                }
+
+                Vector3 strPos = new Vector3(lookingCell.x * 4 + 2, yCell* 4 + 2, lookingCell.y * 4 + 2);
                 Quaternion strRot = Quaternion.Euler(new Vector3((lookingDir.x < 0) ? 180 : 0, lookingDir.y * (-90), 45));
 
                 _rampPrevInstance.transform.position = strPos;
@@ -253,7 +276,7 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
 
                     RaycastHit hitInfo;
                     int layerMask = 1 << 8;
-                    Vector3 flatPos = new Vector3(transform.position.x, 4, transform.position.z);
+                    Vector3 flatPos = new Vector3(transform.position.x, (yCell + 1) * 4, transform.position.z);
                     bool hit = Physics.Raycast(flatPos, new Vector3(0, -1, 0), out hitInfo, 6, layerMask);
                     transform.position = new Vector3(transform.position.x, hitInfo.point.y, transform.position.z);
 
@@ -360,6 +383,10 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
             map.SetActive(false);
             pencil.SetActive(false);
             pickaxe.SetActive(false);
+            _wallPrevInstance.SetActive(false);
+            _floorPrevInstance.SetActive(false);
+            _rampPrevInstance.SetActive(false);
+
 
             currentWeapon = weaponKeyPressed;
             weapons[currentWeapon].gameObject.SetActive(true);
@@ -476,7 +503,7 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
 
         RaycastHit hit;
         // Does the ray intersect any objects excluding the player layer
-        if (Physics.Raycast(_cam.transform.position, _camM.GetForwardDirection(), out hit, 4.0f, layerMask))
+        if (Physics.Raycast(_cam.transform.position, _camM.GetForwardDirection(), out hit, 4.0f))
         {
             Debug.DrawRay(_cam.transform.position, _camM.GetForwardDirection() * hit.distance, Color.yellow);
             
