@@ -10,20 +10,52 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
 {
 
     public enum CAMERA_MODE { BASE };   // Camera modes used to change cam settings
-    public enum PLAYER_STATE { NORMAL, BUILDING };  // Player game states
+    public enum PLAYER_STATE { PICK, BUILDING, WEAPON };  // Player game states
     public enum BUILD_STATE { WALL_PREVIEW, FLOOR_PREVIEW, RAMP_PREVIEW };  // States within building mode
+    public enum AIM_STATE { AIM_HIP, AIM_SHOULDER}
 
     #region Atributos
     // Public
     public Transform chest;
 
+    public GameObject pickaxe;
+
+    #region Movement
+    [Range(1.0f, 10.0f)]
+    public float walk_speed;
+    [Range(1.0f, 10.0f)]
+    public float backwards_walk_speed;
+    [Range(1.0f, 10.0f)]
+    public float strafe_speed;
+
+    [Range(0.1f, 1.5f)]
+    public float rotation_speed;
+
+    [Range(2.0f, 10.0f)]
+    public float jump_force;
+    #endregion
+
     #region Build prefabs
+    public GameObject map;
+    public GameObject pencil;
     public GameObject verticalWallPrefab;
     public GameObject verticalWallPreview;
     public GameObject floorPrefab;
     public GameObject floorPreview;
     public GameObject rampPrefab;
     public GameObject rampPreview;
+    #endregion
+
+    #region Shooting
+    public List<Weapon> weapons;
+    private int MAX_WEAPONS_TO_USE = 5;
+    private int currentWeapon = 0;
+    #endregion
+
+    #region Camera
+    private Vector3 camFwd;
+    private Camera _cam;
+    private CameraMovement _camM;
     #endregion
 
     // Privates
@@ -38,6 +70,7 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
     
     private PLAYER_STATE _state;
     private BUILD_STATE _bState;
+    private AIM_STATE _aState;
     private GameObject _wallPrevInstance;
     private GameObject _floorPrevInstance;
     private GameObject _rampPrevInstance;
@@ -49,9 +82,9 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
     private void Awake()
     {
         tpc = FindObjectOfType<MyTPCharacter>();
+        _camM = GetComponent<CameraMovement>();
+        _cam = _camM.GetCamera();
 
-        _state = PLAYER_STATE.NORMAL;
-        _bState = BUILD_STATE.WALL_PREVIEW;
 
         _wallPrevInstance = Instantiate(verticalWallPreview);
         _wallPrevInstance.SetActive(false);
@@ -61,26 +94,51 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
 
         _rampPrevInstance = Instantiate(rampPreview);
         _rampPrevInstance.SetActive(false);
+
+    }
+
+    public MyTPCharacter GetTPC() { return tpc; }
+
+    protected new void Start()
+    {
+        base.Start();
+        InitializePlayer();
+    }
+
+    private void InitializePlayer() {
+        
+        // Initialize player states
+        _state = PLAYER_STATE.PICK;
+        _bState = BUILD_STATE.WALL_PREVIEW; // Default state for first time player goes into building mode
+        _aState = AIM_STATE.AIM_HIP;
+
+        DisableWeapons();
+
+        // Disable any building prefab instance
+        _wallPrevInstance.SetActive(false);
+        _floorPrevInstance.SetActive(false);
+        _rampPrevInstance.SetActive(false);
     }
 
     protected void Update()
     {
+        GetComponent<Rigidbody>().velocity = Vector3.Scale(GetComponent<Rigidbody>().velocity, new Vector3(0, 1, 0));
         // Input
-        bool mouseLeft = Input.GetMouseButton(0); // Clic izquierdo
+        bool mouseLeft = Input.GetMouseButton(0); // Left click
+        bool mouseRightHeld = Input.GetMouseButton(1); // Right click
+        bool mouseRightReleased = Input.GetMouseButtonUp(1);
+
         bool walking = (m_Move.x != 0 || m_Move.z != 0);    // true if the character is moving
         bool walkingBackwards = Input.GetKey(KeyCode.S);
         bool modeKeyPressed = Input.GetKeyDown(KeyCode.Q);      // true in the frame we press the key
-       
 
-        if (modeKeyPressed) {   // Change the mode
-            _state = (_state == PLAYER_STATE.NORMAL) ? PLAYER_STATE.BUILDING : PLAYER_STATE.NORMAL;
-            _wallPrevInstance.SetActive(false);
-            _floorPrevInstance.SetActive(false);
-            _rampPrevInstance.SetActive(false);
-        }
+
+        // Watch if we need to change de mode
+        HandleModeChange();
 
         // Here starts the state machine for the character
-        if (_state == PLAYER_STATE.NORMAL){ // If the player is in the normal state
+        if (_state == PLAYER_STATE.PICK)
+        { // If the player is in the normal state
             if (mouseLeft)
             {
                 // Cast a ray to the object we want to pick
@@ -98,29 +156,33 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
                     {
                         hitInfo.transform.gameObject.GetComponent<CraftingObject>().Hit(transform.position);
                     }
-                    
+
                     canPick = false;
                     Invoke("EnablePick", 1.0f);
                 }
             }
         }
-        else if (_state == PLAYER_STATE.BUILDING) { // If the player is in the building state
+        else if (_state == PLAYER_STATE.BUILDING)
+        { // If the player is in the building state
             #region Input Management in Building Mode
-            if (Input.GetKeyDown(KeyCode.Z)) {  // Change to wall preview
+            if (Input.GetKeyDown(KeyCode.Z))
+            {  // Change to wall preview
                 _bState = BUILD_STATE.WALL_PREVIEW;
 
                 _wallPrevInstance.SetActive(true);
                 _floorPrevInstance.SetActive(false);
                 _rampPrevInstance.SetActive(false);
             }
-            else if (Input.GetKeyDown(KeyCode.X)) { // Change to floor preview
+            else if (Input.GetKeyDown(KeyCode.X))
+            { // Change to floor preview
                 _bState = BUILD_STATE.FLOOR_PREVIEW;
 
                 _wallPrevInstance.SetActive(false);
                 _floorPrevInstance.SetActive(true);
                 _rampPrevInstance.SetActive(false);
             }
-            else if (Input.GetKeyDown(KeyCode.C)) { // Change to ramp preview
+            else if (Input.GetKeyDown(KeyCode.C))
+            { // Change to ramp preview
                 _bState = BUILD_STATE.RAMP_PREVIEW;
 
                 _wallPrevInstance.SetActive(false);
@@ -131,7 +193,8 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
 
             #region States Management in Building Mode
             // Here starts the building sub-state machine
-            if (_bState == BUILD_STATE.WALL_PREVIEW) {
+            if (_bState == BUILD_STATE.WALL_PREVIEW)
+            {
                 Vector2 playerCell = GetPlayerPositionCell();
                 Vector2 lookingDir = GetPlayerLookingDirection();
                 Vector2 targetCell = playerCell + lookingDir;
@@ -139,22 +202,29 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
                 Vector3 strPos = new Vector3(buildPosRot.x, 0, buildPosRot.y);
                 Quaternion strRot = Quaternion.Euler(new Vector3(0, buildPosRot.z, 0));
 
+                Debug.Log("Building mode: Player is in cell -> " + playerCell + ", looking at cell -> " + targetCell); 
+
                 _wallPrevInstance.transform.position = strPos;
                 _wallPrevInstance.transform.rotation = strRot;
-                if (Input.GetMouseButtonDown(0)) {  // If left clic
+                if (Input.GetMouseButtonDown(0))
+                {  // If left clic
 
                     //_wallPrevInstance.SetActive(false);
                     GameObject go = Instantiate(verticalWallPrefab, strPos, strRot);
                 }
             }
-            else if (_bState == BUILD_STATE.FLOOR_PREVIEW) {
+            else if (_bState == BUILD_STATE.FLOOR_PREVIEW)
+            {
                 Vector2 playerCell = GetPlayerPositionCell();
-                Vector3 strPos = new Vector3(playerCell.x*4, 0, playerCell.y*4);
+                Vector2 lookingDir = GetPlayerLookingDirection();
+                Vector2 targetCell = playerCell + lookingDir;
+
+                Vector3 strPos = new Vector3(playerCell.x * 4, 0, playerCell.y * 4);
 
                 _floorPrevInstance.transform.position = strPos;
                 _floorPrevInstance.transform.rotation = Quaternion.identity;
-                
-                
+
+
                 if (Input.GetMouseButtonDown(0))
                 {  // If left clic
 
@@ -168,7 +238,7 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
                 Vector2 lookingDir = GetPlayerLookingDirection();
 
                 Vector3 strPos = new Vector3(playerCell.x * 4 + 2, 2, playerCell.y * 4 + 2);
-                Quaternion strRot = Quaternion.Euler(new Vector3((lookingDir.x<0) ? 180 : 0, lookingDir.y*(-90), 45));
+                Quaternion strRot = Quaternion.Euler(new Vector3((lookingDir.x < 0) ? 180 : 0, lookingDir.y * (-90), 45));
 
                 _rampPrevInstance.transform.position = strPos;
                 _rampPrevInstance.transform.rotation = strRot;
@@ -183,12 +253,23 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
                     Vector3 flatPos = new Vector3(transform.position.x, 4, transform.position.z);
                     bool hit = Physics.Raycast(flatPos, new Vector3(0, -1, 0), out hitInfo, 6, layerMask);
                     transform.position = new Vector3(transform.position.x, hitInfo.point.y, transform.position.z);
-                    
-                    
+
+
                 }
             }
 
             #endregion
+        }
+        else if (_state == PLAYER_STATE.WEAPON) {
+            if (mouseRightHeld)
+                _camM.SwitchToAimMode();
+            else if (mouseRightReleased) {
+                _camM.SwitchToWeaponMode();
+            }
+
+            if (mouseLeft) {
+                weapons[currentWeapon].Fire();
+            }
         }
 
         bool building = (_state == PLAYER_STATE.BUILDING);
@@ -197,11 +278,141 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
         tpc.GetLegsAnimator().SetBool("walking", walking);
         
         tpc.GetBodyAnimator().SetBool("picking", mouseLeft);
-        tpc.GetBodyAnimator().SetBool("building", building);
         if (!mouseLeft) tpc.GetBodyAnimator().SetBool("walking", walking);
     }
 
 
+    private void HandleModeChange() {
+        bool modeKeyPressed = Input.GetKeyDown(KeyCode.Q);      // true in the frame we press the key
+        bool mouseRight = Input.GetMouseButton(1); // Right click
+
+        int weaponKeyPressed = WeaponKeyPressed();
+
+
+        if (modeKeyPressed)
+        {   // If we want to change the current mode by pressing Q
+            switch (_state)
+            {   // Depending on the current state we are going to do different things
+                case PLAYER_STATE.PICK:
+                    {
+                        _state = PLAYER_STATE.BUILDING;
+
+                        DisableWeapons();
+
+                        pickaxe.gameObject.SetActive(false);
+                        map.gameObject.SetActive(true);
+                        pencil.gameObject.SetActive(true);
+
+                        // Plays animation showing map and pencil
+                        tpc.GetBodyAnimator().Play("Body_Build");
+
+                        break;
+                    }
+                case PLAYER_STATE.BUILDING:
+                    {
+                        _state = PLAYER_STATE.PICK;
+
+                        DisableWeapons();
+
+
+                        pickaxe.gameObject.SetActive(true);
+                        map.gameObject.SetActive(false);
+                        pencil.gameObject.SetActive(false);
+
+                        _wallPrevInstance.SetActive(false);
+                        _floorPrevInstance.SetActive(false);
+                        _rampPrevInstance.SetActive(false);
+
+                        tpc.GetBodyAnimator().Play("Body_Pick_Idle");
+
+                        break;
+                    }
+                default:
+                    {
+                        _state = PLAYER_STATE.PICK;
+
+                        DisableWeapons();
+
+                        pickaxe.gameObject.SetActive(true);
+                        map.gameObject.SetActive(false);
+                        pencil.gameObject.SetActive(false);
+
+                        _wallPrevInstance.SetActive(false);
+                        _floorPrevInstance.SetActive(false);
+                        _rampPrevInstance.SetActive(false);
+
+                        tpc.GetBodyAnimator().Play("Body_Pick_Idle");
+                        break;
+                    }
+            }
+
+        }
+        else if (weaponKeyPressed != -1) {
+            // Show weapon
+            _state = PLAYER_STATE.WEAPON;
+            _aState = AIM_STATE.AIM_HIP;
+
+
+            // Hide other elements (pickaxe, map, etc)
+            map.SetActive(false);
+            pencil.SetActive(false);
+            pickaxe.SetActive(false);
+
+            currentWeapon = weaponKeyPressed;
+            weapons[currentWeapon].gameObject.SetActive(true);
+            weapons[currentWeapon].ShowWeapon();
+            
+        }
+    }
+
+    private int WeaponKeyPressed() {
+        int whickKey = -1;
+
+        int start = (int) KeyCode.Alpha1;
+        int end = start + Mathf.Min(weapons.Count, MAX_WEAPONS_TO_USE);
+        for (int i = start; i < end; ++i)
+            if (Input.GetKeyDown((KeyCode)i))
+                return i - start;
+
+        return whickKey;
+    }
+
+    private void DisableWeapons()
+    {
+        foreach (Weapon w in weapons)
+        {
+           w.gameObject.SetActive(false);  // Disable every weapon 
+        }
+    }
+
+
+    protected new void FixedUpdate() {
+        // Gets the input
+        float h = Input.GetAxis("Horizontal");
+        float v = Input.GetAxis("Vertical");
+        bool jump = Input.GetButtonDown("Jump");
+
+        // Calculate camera relative directions to move:
+        camFwd = Vector3.Scale(_cam.transform.forward, new Vector3(1, 1, 1)).normalized;
+        Vector3 camFlatFwd = Vector3.Scale(_cam.transform.forward, new Vector3(1, 0, 1)).normalized;
+        Vector3 flatRight = new Vector3(_cam.transform.right.x, 0, _cam.transform.right.z);
+
+        Vector3 m_CharForward = Vector3.Scale(camFlatFwd, new Vector3(1, 0, 1)).normalized;
+        Vector3 m_CharRight = Vector3.Scale(flatRight, new Vector3(1, 0, 1)).normalized;
+
+
+        // Draws a ray to show the direction the player is aiming at
+        //Debug.DrawLine(transform.position, transform.position + camFwd * 5f, Color.red);
+
+        // Move the player (movement will be slightly different depending on the camera type)
+        float w_speed;
+        Vector3 move = Vector3.zero;
+        w_speed = (v > 0) ? walk_speed : backwards_walk_speed;
+        move = v * m_CharForward * w_speed + h * m_CharRight * strafe_speed;
+
+        transform.position += move * Time.deltaTime;    // Move the actual player
+        m_Move = move;
+    }
 
 
     private void SetCameraMode(CAMERA_MODE mode) {
@@ -223,7 +434,6 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
         canPick = true;
     }
 
-
     #region Building related methods
 
     // Returns the (X,Z) cell in which the player is located
@@ -241,6 +451,7 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
         if (Mathf.Abs(transform.forward.x) > Mathf.Abs(transform.forward.z))
         {
             float x = Mathf.Sign(transform.forward.x);
+
             return new Vector2(x, 0);
         }
         else {
@@ -248,7 +459,6 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
             return new Vector2(0, z);
         }
         
-        return new Vector2(0,0);
     }
 
     // Returns the position and rotation in which the structure will be built. The return Vector3 is in the following format: (PosX, PosZ, Rotation)
