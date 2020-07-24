@@ -9,6 +9,8 @@ using UnityStandardAssets.Characters.ThirdPerson;
 public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
 {
 
+    public static Fortnite_ThirdPersonInput s;
+
     public enum CAMERA_MODE { BASE };   // Camera modes used to change cam settings
     public enum PLAYER_STATE { PICK, BUILDING, WEAPON };  // Player game states
     public enum BUILD_STATE { WALL_PREVIEW, FLOOR_PREVIEW, RAMP_PREVIEW };  // States within building mode
@@ -19,6 +21,11 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
     public Transform chest;
 
     public GameObject pickaxe;
+
+    #region Health
+    private int _health = 100;
+    private int _shield = 100;
+    #endregion
 
     #region Movement
     [Range(1.0f, 10.0f)]
@@ -33,6 +40,12 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
 
     [Range(2.0f, 10.0f)]
     public float jump_force;
+    #endregion
+
+    #region Crafting
+    private int _wood = 0;
+    private int _bricks = 0;
+    private int _metal = 0;
     #endregion
 
     #region Build prefabs
@@ -72,6 +85,7 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
     private PLAYER_STATE _state;
     private BUILD_STATE _bState;
     private AIM_STATE _aState;
+
     private GameObject _wallPrevInstance;
     private GameObject _floorPrevInstance;
     private GameObject _rampPrevInstance;
@@ -82,6 +96,8 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
 
     private void Awake()
     {
+        s = this;
+
         _rb = GetComponent<Rigidbody>();
         tpc = FindObjectOfType<MyTPCharacter>();
         _camM = GetComponent<CameraMovement>();
@@ -140,6 +156,10 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
             _rb.AddForce(Vector3.up * jump_force, ForceMode.Impulse);
         }
 
+        if (Input.GetKeyDown(KeyCode.P)) {
+            DealDamage(32);
+        }
+
         // Watch if we need to change de mode
         HandleModeChange();
 
@@ -161,7 +181,7 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
                     // Does the ray intersect any objects excluding the player layer
                     if (hit)
                     {
-                        hitInfo.transform.gameObject.GetComponent<CraftingObject>().Hit(transform.position);
+                        hitInfo.transform.gameObject.GetComponent<CraftingObject>().Hit(transform.position, this);
                     }
 
                     canPick = false;
@@ -236,7 +256,6 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
                 if ((int)(transform.position.y) % 4 > 2) {
                     yCell++;
                 }
-                Debug.Log(yCell);
                 Vector3 strPos = new Vector3(lookingCell.x * 4, yCell * 4, lookingCell.y * 4);
 
                 _floorPrevInstance.transform.position = strPos;
@@ -279,8 +298,6 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
                     Vector3 flatPos = new Vector3(transform.position.x, (yCell + 1) * 4, transform.position.z);
                     bool hit = Physics.Raycast(flatPos, new Vector3(0, -1, 0), out hitInfo, 6, layerMask);
                     transform.position = new Vector3(transform.position.x, hitInfo.point.y, transform.position.z);
-
-
                 }
             }
 
@@ -309,71 +326,48 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
 
 
     private void HandleModeChange() {
-        bool modeKeyPressed = Input.GetKeyDown(KeyCode.Q);      // true in the frame we press the key
+        bool buildModeKeyPressed = Input.GetKeyDown(KeyCode.Q);      // true in the frame we press the key
+        bool pickModeKeyPressed = Input.GetKeyDown(KeyCode.F);
         bool mouseRight = Input.GetMouseButton(1); // Right click
 
         int weaponKeyPressed = WeaponKeyPressed();
 
 
-        if (modeKeyPressed)
+        if (buildModeKeyPressed)
         {   // If we want to change the current mode by pressing Q
-            switch (_state)
-            {   // Depending on the current state we are going to do different things
-                case PLAYER_STATE.PICK:
-                    {
-                        _state = PLAYER_STATE.BUILDING;
+            _state = PLAYER_STATE.BUILDING;
 
-                        DisableWeapons();
+            DisableWeapons();
 
-                        pickaxe.gameObject.SetActive(false);
-                        map.gameObject.SetActive(true);
-                        pencil.gameObject.SetActive(true);
+            pickaxe.gameObject.SetActive(false);
+            map.gameObject.SetActive(true);
+            pencil.gameObject.SetActive(true);
 
-                        // Plays animation showing map and pencil
-                        tpc.GetBodyAnimator().Play("Body_Build");
-
-                        break;
-                    }
-                case PLAYER_STATE.BUILDING:
-                    {
-                        _state = PLAYER_STATE.PICK;
-
-                        DisableWeapons();
-
-
-                        pickaxe.gameObject.SetActive(true);
-                        map.gameObject.SetActive(false);
-                        pencil.gameObject.SetActive(false);
-
-                        _wallPrevInstance.SetActive(false);
-                        _floorPrevInstance.SetActive(false);
-                        _rampPrevInstance.SetActive(false);
-
-                        tpc.GetBodyAnimator().Play("Body_Pick_Idle");
-
-                        break;
-                    }
-                default:
-                    {
-                        _state = PLAYER_STATE.PICK;
-
-                        DisableWeapons();
-
-                        pickaxe.gameObject.SetActive(true);
-                        map.gameObject.SetActive(false);
-                        pencil.gameObject.SetActive(false);
-
-                        _wallPrevInstance.SetActive(false);
-                        _floorPrevInstance.SetActive(false);
-                        _rampPrevInstance.SetActive(false);
-
-                        tpc.GetBodyAnimator().Play("Body_Pick_Idle");
-                        break;
-                    }
-            }
+            // Plays animation showing map and pencil
+            tpc.GetBodyAnimator().Play("Body_Build");
 
         }
-        else if (weaponKeyPressed != -1) {
+        else if (pickModeKeyPressed) {
+            _state = PLAYER_STATE.PICK;
+
+            DisableWeapons();
+
+
+
+            pickaxe.gameObject.SetActive(true);
+            map.gameObject.SetActive(false);
+            pencil.gameObject.SetActive(false);
+
+            _wallPrevInstance.SetActive(false);
+            _floorPrevInstance.SetActive(false);
+            _rampPrevInstance.SetActive(false);
+
+            UIManager.s.SelectPickaxe();
+
+            tpc.GetBodyAnimator().Play("Body_Pick_Idle");
+        }
+        else if (weaponKeyPressed != -1)
+        {
             // Show weapon
             _state = PLAYER_STATE.WEAPON;
             _aState = AIM_STATE.AIM_HIP;
@@ -388,10 +382,13 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
             _rampPrevInstance.SetActive(false);
 
 
+            weapons[currentWeapon].gameObject.SetActive(false);
             currentWeapon = weaponKeyPressed;
             weapons[currentWeapon].gameObject.SetActive(true);
             weapons[currentWeapon].ShowWeapon();
-            
+
+            UIManager.s.SelectWeapon(currentWeapon);
+
         }
     }
 
@@ -553,7 +550,51 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
 
         return new Vector3(x,z,rot);
     }
-    
+
+    #endregion
+
+
+    #region Craft materials methods
+
+    public int GetWood() { return _wood; }
+
+    public int GetBricks() { return _bricks; }
+
+    public int GetMetal() { return _metal; }
+
+    public void AddWood(int amount) { _wood += amount; }
+    public void AddBricks(int amount) { _bricks += amount; }
+    public void AddMetal(int amount) { _metal += amount; }
+
+    #endregion
+
+    #region Health related methods
+    public int GetHealth() { return _health; }
+
+    public void DealDamage(int dmg) {
+        if (_shield > 0)
+        {
+            if (_shield > dmg)
+            {
+                _shield -= dmg;
+            }
+            else
+            {
+                _shield = 0;
+                _health -= (dmg - _shield);
+            }
+        }
+        else {
+            _health -= dmg;
+        }
+
+        // Fix possible wrong values
+        if (_shield < 0) _shield = 0;
+        if (_health < 0) _health = 0;
+
+        UIManager.s.UpdateHealthAndShield(_health, _shield);
+    }
+
     #endregion
 }
 

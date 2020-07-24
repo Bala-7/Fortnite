@@ -28,14 +28,6 @@ public class GameManager : MonoBehaviour
 
 
     #region Crafting materials methods
-    public int GetPlayerWood() { return _pWood; }
-    public int GetPlayerBricks() { return _pBricks; }
-    public int GetPlayerMetal() { return _pMetal; }
-
     public AnimationCurve GetBounceAnimationCurve() { return _bounceAnimCurve; }
-
-    public void AddWood(int amount) { _pWood += amount; }
-    public void AddBricks(int amount) { _pBricks += amount; }
-    public void AddMetal(int amount) { _pMetal += amount; }
     #endregion
 }

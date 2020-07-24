@@ -75,6 +75,7 @@
     <Compile Include="Assets\Scripts\Bullet.cs" />
     <Compile Include="Assets\Scripts\CameraMovement.cs" />
     <Compile Include="Assets\Scripts\CraftingObject.cs" />
+    <Compile Include="Assets\Scripts\DamageUI.cs" />
     <Compile Include="Assets\Scripts\Enemy.cs" />
     <Compile Include="Assets\Scripts\FireWeapon.cs" />
     <Compile Include="Assets\Scripts\Fortnite_ThirdPersonInput.cs" />
@@ -127,6 +128,9 @@
     </Reference>
     <Reference Include="Unity.RenderPipelines.ShaderGraph.ShaderGraphLibrary">
       <HintPath>C:/Users/fdomi/UnityProjects/Fortnite/Library/ScriptAssemblies/Unity.RenderPipelines.ShaderGraph.ShaderGraphLibrary.dll</HintPath>
+    </Reference>
+    <Reference Include="Unity.2D.Sprite.Editor">
+      <HintPath>C:/Users/fdomi/UnityProjects/Fortnite/Library/ScriptAssemblies/Unity.2D.Sprite.Editor.dll</HintPath>
     </Reference>
     <Reference Include="Unity.Postprocessing.Runtime">
       <HintPath>C:/Users/fdomi/UnityProjects/Fortnite/Library/ScriptAssemblies/Unity.Postprocessing.Runtime.dll</HintPath>

@@ -45,7 +45,7 @@ public class CraftingObject : MonoBehaviour
     }
 
 
-    public void Hit(Vector3 from)
+    public void Hit(Vector3 from, Fortnite_ThirdPersonInput p)
     {
         // Bounce stuff
         _state = OBJECT_STATE.ANIMATING;
@@ -55,26 +55,26 @@ public class CraftingObject : MonoBehaviour
         health--;
         if (health <= 0)
         {
-            UpdatePlayerAmount();
+            UpdatePlayerAmount(p);
             Destroy(this.gameObject);
         }
 
     }
 
-    protected void UpdatePlayerAmount() {
+    protected void UpdatePlayerAmount(Fortnite_ThirdPersonInput p) {
         switch (type) {
             case OBJECT_TYPE.WOOD: {
-                    GameManager.s.AddWood(amountToPlayer);
+                    p.AddWood(amountToPlayer);
                     UIManager.s.UpdateWoodText();
                     break; 
                 }
             case OBJECT_TYPE.BRICK: {
-                    GameManager.s.AddBricks(amountToPlayer);
+                    p.AddBricks(amountToPlayer);
                     UIManager.s.UpdateBricksText();
                     break; 
                 }
             case OBJECT_TYPE.METAL: {
-                    GameManager.s.AddMetal(amountToPlayer);
+                    p.AddMetal(amountToPlayer);
                     UIManager.s.UpdateMetalText();
                     break; 
                 }

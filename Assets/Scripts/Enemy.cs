@@ -7,6 +7,7 @@ public class Enemy : MonoBehaviour
     private int health = 100;
     private Animator _ac;
 
+    public DamageUI dmgUIPrefab;
 
     private void Awake()
     {
@@ -30,6 +31,9 @@ public class Enemy : MonoBehaviour
         if (health > 0)
         {
             health -= dmg;
+
+            DamageUI ui = Instantiate(dmgUIPrefab, transform.position + new Vector3(0,2,0), Quaternion.identity);
+            ui.ShowDamage(dmg);
         }
         else
         {
