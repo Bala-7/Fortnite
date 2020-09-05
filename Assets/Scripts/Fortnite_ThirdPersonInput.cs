@@ -553,7 +553,6 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
 
     #endregion
 
-
     #region Craft materials methods
 
     public int GetWood() { return _wood; }
@@ -596,6 +595,12 @@ public class Fortnite_ThirdPersonInput : ThirdPersonUserControl
     }
 
     #endregion
+
+
+    public float GetForwardAngleRadar() { 
+
+        return transform.eulerAngles.y;
+    }
 }
 
 
